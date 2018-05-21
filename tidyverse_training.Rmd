@@ -14,6 +14,8 @@ knitr::opts_chunk$set(echo = TRUE)
   library(tidyr)
 ```
 
+
+Read in data
 ```{r}
 
 catch_df <- read.csv(url("https://knb.ecoinformatics.org/knb/d1/mn/v2/object/df35b.302.1", method = "libcurl"),
@@ -24,8 +26,83 @@ head(catch_df)
 unique(catch_df$notesRegCode)
 ```
 
+Selected columns that I wanted
 ```{r}
 catch_df <- catch_df %>% 
   select(Region, Year, Chinook, Sockeye, Coho, Pink, Chum) 
   head(catch_df)
+```
+
+
+Moved from wide to long formate
+```{r}
+catch_df = catch_df %>% 
+  gather(key=Species, value=Catch, -Region, -Year)
+
+head(catch_df)
+
+```
+Renamed a column
+```{r}
+catch_df = catch_df %>% 
+  rename(catch_thousands = Catch)
+
+head(catch_df)
+
+```
+
+Found a typoe in original data
+```{r}
+test = as.integer(catch_df$catch_thousands)
+which(is.na(test)==TRUE)
+catch_df[401, ]
+```
+
+Corrected the type-o and converted 'catch_thousands" columns to numeric
+```{r}
+catch_df=catch_df %>% 
+  mutate(catch_thousands = ifelse(catch_thousands =="I", 1, catch_thousands)) %>% 
+  mutate(catch_thousands = as.integer(catch_thousands)) %>% 
+  mutate(catch =catch_thousands *1000)
+
+head(catch_df, 30)
+```
+# Analysis
+Mean catch by species by year
+```{r}
+catch_df %>% 
+  group_by(Species, Year) %>% 
+  summarize(mean_catch = mean(catch), num_obs = n())
+```
+
+Filter just for chinook by region
+```{r}
+catch_df %>% 
+  filter(Species == "Chinook") %>% 
+  group_by(Region) %>% 
+  summarise(mean_catch =mean(catch)) %>% 
+  arrange(desc(mean_catch)) #sort in descending order
+```
+
+# Joins
+
+```{r}
+region_defs <- read.csv(url("https://knb.ecoinformatics.org/knb/d1/mn/v2/object/df35b.303.1", method = "libcurl"),
+                        stringsAsFactors = FALSE)
+head(region_defs)
+
+```
+
+```{r}
+region_defs = region_defs %>% 
+  select(code, mgmtArea) %>% 
+  rename(Region = code, Region_Name =mgmtArea)
+  
+head(region_defs)
+```
+
+```{r}
+catch_joined = left_join(catch_df, region_defs)
+
+head(catch_joined)
 ```
